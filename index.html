@@ -61,6 +61,7 @@
       --line: #E2D8C8;
       --paper: #FFFBF5;
       --mist: #6E675C;
+      --on-brand: #FFFBF5;
     }
     * { box-sizing: border-box; }
     body {
@@ -94,13 +95,20 @@
       border: 1px solid var(--line);
       box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
       display: flex;
+      flex-direction: column;
       overflow: hidden;
     }
-    .spine { width: 10px; background: var(--forest); flex: none; }
-    .body { padding: 22px 20px 20px; min-width: 0; }
+    .band {
+      background: var(--forest);
+      color: var(--on-brand);
+      min-height: 8px;
+      padding: 14px 20px;
+    }
+    .band:empty { padding: 8px 0; }
+    .body { padding: 18px 20px 20px; min-width: 0; }
     .company {
-      margin: 0 0 10px;
-      color: var(--moss);
+      margin: 0;
+      color: var(--on-brand);
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 1.4px;
@@ -280,16 +288,79 @@
       app.appendChild(empty);
     }
 
+    function mix(base, other, amount) {
+      return base.map(function (from, index) {
+        return Math.round(from + (other[index] - from) * amount);
+      });
+    }
+    function channelLuma(value) {
+      var scaled = value / 255;
+      return scaled <= 0.03928 ? scaled / 12.92 : Math.pow((scaled + 0.055) / 1.055, 2.4);
+    }
+    function luminance(rgb) {
+      return 0.2126 * channelLuma(rgb[0]) + 0.7152 * channelLuma(rgb[1]) + 0.0722 * channelLuma(rgb[2]);
+    }
+    function contrast(a, b) {
+      var lighter = Math.max(luminance(a), luminance(b));
+      var darker = Math.min(luminance(a), luminance(b));
+      return (lighter + 0.05) / (darker + 0.05);
+    }
+    function cssHex(rgb) {
+      return '#' + rgb.map(function (value) {
+        return Math.max(0, Math.min(255, value)).toString(16).padStart(2, '0');
+      }).join('');
+    }
+    function darkenToLuminance(color, target) {
+      var current = color.slice();
+      for (var step = 0; step < 18; step++) {
+        if (luminance(current) <= target) return current;
+        current = mix(current, [0, 0, 0], 0.28);
+      }
+      return current;
+    }
+    function applyPalette(raw) {
+      if (!raw || !/^[0-9A-Fa-f]{6}$/.test(raw)) return;
+      var brand = [
+        parseInt(raw.slice(0, 2), 16),
+        parseInt(raw.slice(2, 4), 16),
+        parseInt(raw.slice(4, 6), 16)
+      ];
+      var cream = [255, 251, 245];
+      var inkSeed = [26, 24, 20];
+      var paper = mix(cream, brand, 0.09);
+      var accent = brand.slice();
+      for (var step = 0; step < 14; step++) {
+        if (contrast(accent, paper) >= 4.5) break;
+        accent = mix(accent, inkSeed, 0.22);
+      }
+      var tinted = mix(inkSeed, brand, 0.18);
+      var ink = contrast(tinted, paper) >= 4.5 ? tinted : accent;
+      var bar = contrast(cream, brand) >= 4.5 || contrast(inkSeed, brand) >= 4.5 ? brand : accent;
+      var onBrand = contrast(cream, bar) >= contrast(inkSeed, bar) ? cream : inkSeed;
+      var root = document.documentElement.style;
+      root.setProperty('--paper', cssHex(paper));
+      root.setProperty('--ink', cssHex(ink));
+      root.setProperty('--forest', cssHex(bar));
+      root.setProperty('--copper', cssHex(accent));
+      root.setProperty('--mist', cssHex(mix(ink, paper, 0.42)));
+      root.setProperty('--line', cssHex(mix(paper, brand, 0.22)));
+      root.setProperty('--deep', cssHex(darkenToLuminance(brand, 0.07)));
+      root.setProperty('--on-brand', cssHex(onBrand));
+      root.setProperty('--moss', cssHex(bar));
+    }
+
     function renderCard(card, code) {
       document.title = card.n + ' · B Card';
+      applyPalette(card.k);
       var header = el('header');
       header.appendChild(el('div', 'mark', 'B Card'));
       app.appendChild(header);
 
       var cardEl = el('article', 'card');
-      cardEl.appendChild(el('div', 'spine'));
+      var band = el('div', 'band');
+      if (text(card.c)) band.appendChild(el('p', 'company', text(card.c)));
+      cardEl.appendChild(band);
       var body = el('div', 'body');
-      if (text(card.c)) body.appendChild(el('p', 'company', text(card.c)));
       body.appendChild(el('h1', '', card.n));
       if (text(card.t)) body.appendChild(el('p', 'title', text(card.t)));
       if (text(card.b)) body.appendChild(el('p', 'bio', text(card.b)));
