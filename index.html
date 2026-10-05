@@ -101,14 +101,14 @@
     .band {
       background: var(--forest);
       color: var(--on-brand);
-      min-height: 8px;
-      padding: 14px 20px;
+      padding: 22px 22px 20px;
     }
-    .band:empty { padding: 8px 0; }
-    .body { padding: 18px 20px 20px; min-width: 0; }
+    .band h1 { color: var(--on-brand); font-size: 30px; }
+    .band .title { color: color-mix(in srgb, var(--on-brand) 82%, transparent); margin: 4px 0 0; }
+    .body { padding: 16px 18px 18px; min-width: 0; background: var(--paper); }
     .company {
-      margin: 0;
-      color: var(--on-brand);
+      margin: 0 0 6px;
+      color: color-mix(in srgb, var(--on-brand) 82%, transparent);
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 1.4px;
@@ -359,10 +359,10 @@
       var cardEl = el('article', 'card');
       var band = el('div', 'band');
       if (text(card.c)) band.appendChild(el('p', 'company', text(card.c)));
+      band.appendChild(el('h1', '', card.n));
+      if (text(card.t)) band.appendChild(el('p', 'title', text(card.t)));
       cardEl.appendChild(band);
       var body = el('div', 'body');
-      body.appendChild(el('h1', '', card.n));
-      if (text(card.t)) body.appendChild(el('p', 'title', text(card.t)));
       if (text(card.b)) body.appendChild(el('p', 'bio', text(card.b)));
 
       var list = document.createElement('ul');
@@ -379,7 +379,7 @@
         ));
       }
       if (list.childNodes.length) body.appendChild(list);
-      cardEl.appendChild(body);
+      if (body.childNodes.length) cardEl.appendChild(body);
       app.appendChild(cardEl);
 
       var actions = el('div', 'actions');
